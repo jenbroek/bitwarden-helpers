@@ -1,0 +1,2 @@
+# paths
+PREFIX = /usr/local

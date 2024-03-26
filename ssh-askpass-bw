@@ -1,0 +1,12 @@
+#!/bin/sh -e
+
+folder=${BWHELPER_SSH:-ssh-keys}
+
+key=$(sed 's/Enter passphrase for \(.*\):.*/\1/' << EOF
+$*
+EOF
+)
+
+folder=$(bw --nointeraction get folder "$folder" | jq -er .id)
+bw --nointeraction list items --folderid "$folder" --search "$key" \
+    | jq -er .[0].login.password

@@ -1,0 +1,33 @@
+#!/bin/sh -e
+
+folder=${BWHELPER_GPG:-pgp-keys}
+
+is_cached() {
+	grip=$(gpg -K --with-colons "$key" | awk -F: -v k="$key" '$5==k { getline; getline; print $10 }')
+	test "$(gpg-connect-agent 'KEYINFO --list' /bye | awk -v g="$grip" '$3==g { print $7 }')" = 1
+}
+
+sign() {
+	main_key=$(gpg -K --with-colons "$key" | awk -F: '$1=="sec" { print $5 }')
+	test -z "$main_key" && return 1
+
+	folder=$(bw --nointeraction get folder "$folder" | jq -er .id) || return 1
+	pass=$(bw --nointeraction list items --folderid "$folder" --search "$main_key" \
+	    | jq -er .[0].login.password) || return 1
+
+	exec gpg --batch --pinentry-mode loopback --passphrase-fd 3 "$@" 3<< EOF
+$pass
+EOF
+}
+
+case $* in
+	*-bsau*)
+		for key in "$@"; do :; done
+		if is_cached || ! sign "$@"; then
+			exec gpg "$@"
+		fi
+		;;
+	*)
+		exec gpg "$@"
+		;;
+esac
